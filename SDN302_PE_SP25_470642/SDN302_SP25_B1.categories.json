@@ -1,0 +1,35 @@
+[{
+  "_id": {
+    "$oid": "67bc8e6fd100471c0d9a4c4d"
+  },
+  "name": "Electronics",
+  "description": "Devices and gadgets including phones, laptops, and accessories."
+},
+{
+  "_id": {
+    "$oid": "67bc8e6fd100471c0d9a4c4e"
+  },
+  "name": "Fashion",
+  "description": "Clothing, footwear, and accessories for men and women."
+},
+{
+  "_id": {
+    "$oid": "67bc8e6fd100471c0d9a4c4f"
+  },
+  "name": "Home & Kitchen",
+  "description": "Furniture, kitchenware, and home improvement products."
+},
+{
+  "_id": {
+    "$oid": "67bc8e6fd100471c0d9a4c50"
+  },
+  "name": "Sports & Outdoors",
+  "description": "Equipment and apparel for outdoor activities and fitness."
+},
+{
+  "_id": {
+    "$oid": "67bc8e6fd100471c0d9a4c51"
+  },
+  "name": "Books",
+  "description": "A variety of books covering different genres and topics."
+}]

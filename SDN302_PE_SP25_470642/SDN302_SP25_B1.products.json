@@ -1,0 +1,110 @@
+[{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c57"
+  },
+  "name": "iPhone 14",
+  "price": 999,
+  "stock": 50,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c4d"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c58"
+  },
+  "name": "Samsung Galaxy S23",
+  "price": 899,
+  "stock": 40,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c4d"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c59"
+  },
+  "name": "Nike Running Shoes",
+  "price": 120,
+  "stock": 80,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c4e"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c5a"
+  },
+  "name": "Adidas Hoodie",
+  "price": 75,
+  "stock": 60,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c4e"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c5b"
+  },
+  "name": "Wooden Dining Table",
+  "price": 450,
+  "stock": 30,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c4f"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c5c"
+  },
+  "name": "Non-stick Cookware Set",
+  "price": 80,
+  "stock": 70,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c4f"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c5d"
+  },
+  "name": "Yoga Mat",
+  "price": 25,
+  "stock": 90,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c50"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c5e"
+  },
+  "name": "Trekking Backpack",
+  "price": 60,
+  "stock": 55,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c50"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c5f"
+  },
+  "name": "Fiction Novel",
+  "price": 15,
+  "stock": 100,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c51"
+  }
+},
+{
+  "_id": {
+    "$oid": "67bc8ff7d100471c0d9a4c60"
+  },
+  "name": "Programming Book",
+  "price": 40,
+  "stock": 45,
+  "category": {
+    "$oid": "67bc8e6fd100471c0d9a4c51"
+  }
+}]

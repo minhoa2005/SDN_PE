@@ -1,0 +1,20 @@
+/* Question 4: Sample test create a new Order */
+{
+    "customerId": "67bca5a616951b6b54b79eb5",
+    "products": [
+        {
+            "productId": "67bc8ff7d100471c0d9a4c57",
+            "quantity": 1
+        },
+        {
+            "productId": "67bc8ff7d100471c0d9a4c58",
+            "quantity": 4
+        }
+    ]
+}
+
+/* Question 5: Sample test login */
+{
+    "email": "john@example.com",
+    "password": "abc@123"
+}

@@ -1,0 +1,35 @@
+[{
+  "_id": {
+    "$oid": "67bca0086fac80b67916672f"
+  },
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "$2b$10$inr6wPU74LH5MAD2C2orEuMb8GWlsmNu2DDOGBtYavy8CkZ63sjzK",
+  "address": "1234 Elm Street, Springfield, IL",
+  "phone": 1234567890,
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "67bca59316951b6b54b79eb2"
+  },
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "password": "$2b$10$F3rWz35qxRwHvsIH4FT27uFJpTrp7Os9QsEfhedA6mX0v1zlQOtqe",
+  "address": "5678 Oak Avenue, Chicago, IL",
+  "phone": {
+    "$numberLong": "9876543210"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "67bca5a616951b6b54b79eb5"
+  },
+  "name": "Alex Johnson",
+  "email": "alex@example.com",
+  "password": "$2b$10$gXAYOG76jOLsAutwStvWd.2P6mFY.CKOpWFE9A2ZbppyjlfxlcI/6",
+  "address": "9101 Pine Road, Madison, WI",
+  "phone": 1231231234,
+  "__v": 0
+}]
