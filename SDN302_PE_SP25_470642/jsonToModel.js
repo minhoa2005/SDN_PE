@@ -11,6 +11,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 const CRUD_MODES = ["all", "find", "findById", "create", "updateById", "deleteById"];
 
@@ -399,6 +400,96 @@ function generateIdList(entries) {
   return `${lines.join("\n").trim()}\n`;
 }
 
+function promptDatabaseName() {
+  const shell = process.env.SHELL || "/bin/zsh";
+  const result = spawnSync(shell, ["-lc", 'printf "Database name: " 1>&2; read -r dbName; printf "%s" "$dbName"'], {
+    stdio: ["inherit", "pipe", "inherit"],
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    throw new Error("Failed to read database name.");
+  }
+
+  const dbName = (result.stdout || "").trim();
+  if (!dbName) {
+    throw new Error("Database name is required for --upload.");
+  }
+
+  return dbName;
+}
+
+function promptMongoUri() {
+  const shell = process.env.SHELL || "/bin/zsh";
+  const result = spawnSync(shell, ["-lc", 'printf "Mongo URI: " 1>&2; read -r mongoUri; printf "%s" "$mongoUri"'], {
+    stdio: ["inherit", "pipe", "inherit"],
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    throw new Error("Failed to read Mongo URI.");
+  }
+
+  const mongoUri = (result.stdout || "").trim();
+  if (!mongoUri) {
+    throw new Error("Mongo URI is required for --upload-custom.");
+  }
+
+  return mongoUri;
+}
+
+function extractDatabaseNameFromUri(uri) {
+  const cleanUri = String(uri || "").split("?")[0].replace(/\/+$/, "");
+  const idx = cleanUri.lastIndexOf("/");
+  if (idx === -1) return "";
+  return cleanUri.slice(idx + 1);
+}
+
+function uploadJsonFiles(uploadEntries, mongoUri, databaseName) {
+  for (const entry of uploadEntries) {
+    let result = spawnSync("mongoimport", [
+      "--uri",
+      mongoUri,
+      "--collection",
+      entry.collectionName,
+      "--file",
+      entry.jsonFile,
+      "--jsonArray",
+    ], {
+      encoding: "utf8",
+    });
+
+    if (result.error && result.error.code === "ENOENT") {
+      const rawJson = fs.readFileSync(entry.jsonFile, "utf8");
+      const mongoScript = [
+        `const docs = EJSON.parse(${JSON.stringify(rawJson)});`,
+        `const collection = db.getSiblingDB(${JSON.stringify(databaseName)}).getCollection(${JSON.stringify(entry.collectionName)});`,
+        "collection.deleteMany({});",
+        "if (docs.length) collection.insertMany(docs);",
+      ].join(" ");
+
+      result = spawnSync("mongosh", [
+        mongoUri,
+        "--quiet",
+        "--eval",
+        mongoScript,
+      ], {
+        encoding: "utf8",
+      });
+    }
+
+    if (result.status !== 0) {
+      const stderr = (result.stderr || "").trim();
+      throw new Error(`Upload failed for ${entry.collectionName}: ${stderr || "mongoimport exited with an error."}`);
+    }
+
+    console.log(`Uploaded ${path.basename(entry.jsonFile)} -> ${databaseName}.${entry.collectionName}`);
+  }
+
+  console.log("\n// env:");
+  console.log(`MONGO_URI=${mongoUri}`);
+}
+
 const args = process.argv.slice(2);
 const scriptName = path.basename(process.argv[1] || "jsonToModel.js");
 
@@ -429,6 +520,8 @@ const isJs = args.includes("--js");
 const isJsDeep = args.includes("--js-deep");
 const isPopulate = args.includes("--populate");
 const isIdList = args.includes("--id-list");
+const isUpload = args.includes("--upload");
+const isUploadCustome = args.includes("--upload-custom");
 const shouldWriteJs = isJs || isJsDeep;
 let batchFiles = isBatch ? getMultiFlag("--batch") : [];
 let outDir = getFlag("--output") ?? getFlag("--outdir");
@@ -449,6 +542,8 @@ Options:
   --js-deep                      Generate db.js with nested object/array mapping.
   --populate                     Add populate(...) to generated CRUD queries when refs are detected.
   --id-list                      Generate id.txt with valid_id and invalid_id samples.
+  --upload                       Upload JSON files to local MongoDB after generation.
+  --upload-custom               Upload JSON files to a custom MongoDB URI after generation.
   --note                         Generate db.txt schema notes.
   --mongoose <file|mode>         Single-file model output path, or CRUD mode: all|find|findById|create|updateById|deleteById.
   --help, -h                     Show this help.
@@ -460,7 +555,8 @@ Single File Mode:
   --refs <A.js> <B.js>           Existing model files to resolve refs.
 
 Examples:
-  node ${scriptName} --auto-ref --clean --js-deep --populate --id-list --input . --output ./models --mongoose all
+  node ${scriptName} --auto-ref --clean --js-deep --populate --id-list --upload --input . --output ./models --mongoose all
+  node ${scriptName} --auto-ref --upload-custom --input . --output ./models
   node ${scriptName} --batch users.json events.json --outdir ./models --mongoose find
   node ${scriptName} users.json --model User --mongoose User.js
 `);
@@ -503,6 +599,7 @@ if (isAuto || isAutoRef || isBatch) {
   const mongooseDir = path.join(selectedDir, "mongoose");
   const dbJsEntries = [];
   const idEntries = [];
+  const uploadEntries = [];
   const dbNotes = [];
 
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
@@ -525,6 +622,7 @@ if (isAuto || isAutoRef || isBatch) {
 
     dbJsEntries.push({ schema, modelName, collectionName });
     idEntries.push({ docs, modelName });
+    uploadEntries.push({ jsonFile, collectionName: collectionName.toLowerCase() });
 
     if (isNote) {
       dbNotes.push(`=== ${modelName} ===`);
@@ -564,6 +662,14 @@ if (isAuto || isAutoRef || isBatch) {
     const idPath = path.join(selectedDir, "id.txt");
     fs.writeFileSync(idPath, generateIdList(idEntries), "utf8");
     console.log(`Written id list: ${idPath}`);
+  }
+
+  if (isUpload || isUploadCustome) {
+    const databaseName = promptDatabaseName();
+    const mongoUri = isUploadCustome
+      ? promptMongoUri()
+      : `mongodb://127.0.0.1:27017/${databaseName}`;
+    uploadJsonFiles(uploadEntries, mongoUri, databaseName);
   }
 
   process.exit(0);
@@ -642,4 +748,12 @@ if (isIdList) {
   const idPath = path.join(path.dirname(path.resolve(inputFile)), "id.txt");
   fs.writeFileSync(idPath, generateIdList([{ docs, modelName }]), "utf8");
   console.log(`id.txt written to: ${idPath}`);
+}
+
+if (isUpload || isUploadCustome) {
+  const databaseName = promptDatabaseName();
+  const mongoUri = isUploadCustome
+    ? promptMongoUri()
+    : `mongodb://127.0.0.1:27017/${databaseName}`;
+  uploadJsonFiles([{ jsonFile: path.resolve(inputFile), collectionName: collectionName.toLowerCase() }], mongoUri, databaseName);
 }

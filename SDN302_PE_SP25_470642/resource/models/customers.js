@@ -1,9 +1,6 @@
 const mongoose = require("mongoose");
 
 const customerSchema = new mongoose.Schema({
-  _id: {
-    type: mongoose.Schema.Types.ObjectId,
-  },
   name: {
     type: String,
   },
@@ -18,9 +15,6 @@ const customerSchema = new mongoose.Schema({
   },
   phone: {
     type: mongoose.Schema.Types.Mixed,
-  },
-  __v: {
-    type: Number,
   }
 });
 
