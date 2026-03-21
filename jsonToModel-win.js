@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const readline = require("readline");
 
 const CRUD_MODES = ["all", "find", "findById", "create", "updateById", "deleteById"];
 
@@ -423,18 +424,22 @@ function generateIdList(entries) {
   return `${lines.join("\n").trim()}\n`;
 }
 
-function promptDatabaseName() {
-  const shell = process.env.SHELL || "/bin/zsh";
-  const result = spawnSync(shell, ["-lc", 'printf "Database name: " 1>&2; read -r dbName; printf "%s" "$dbName"'], {
-    stdio: ["inherit", "pipe", "inherit"],
-    encoding: "utf8",
+function askQuestion(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
   });
 
-  if (result.status !== 0) {
-    throw new Error("Failed to read database name.");
-  }
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(String(answer || "").trim());
+    });
+  });
+}
 
-  const dbName = (result.stdout || "").trim();
+async function promptDatabaseName() {
+  const dbName = await askQuestion("Database name: ");
   if (!dbName) {
     throw new Error("Database name is required for --upload.");
   }
@@ -442,18 +447,8 @@ function promptDatabaseName() {
   return dbName;
 }
 
-function promptMongoUri() {
-  const shell = process.env.SHELL || "/bin/zsh";
-  const result = spawnSync(shell, ["-lc", 'printf "Mongo URI: " 1>&2; read -r mongoUri; printf "%s" "$mongoUri"'], {
-    stdio: ["inherit", "pipe", "inherit"],
-    encoding: "utf8",
-  });
-
-  if (result.status !== 0) {
-    throw new Error("Failed to read Mongo URI.");
-  }
-
-  const mongoUri = (result.stdout || "").trim();
+async function promptMongoUri() {
+  const mongoUri = await askQuestion("Mongo URI: ");
   if (!mongoUri) {
     throw new Error("Mongo URI is required for --upload-custom / --upload-custome.");
   }
@@ -549,6 +544,7 @@ const shouldWriteJs = isJs || isJsDeep;
 let batchFiles = isBatch ? getMultiFlag("--batch") : [];
 let outDir = getFlag("--output") ?? getFlag("--outdir");
 
+async function main() {
 if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
   console.log(`
 JSON_TO_MODEL
@@ -584,7 +580,7 @@ Examples:
   node ${scriptName} --batch users.json events.json --outdir ./models --mongoose find
   node ${scriptName} users.json --model User --mongoose User.js
 `);
-  process.exit(0);
+  return;
 }
 
 if (isAuto || isAutoRef || isBatch) {
@@ -689,14 +685,14 @@ if (isAuto || isAutoRef || isBatch) {
   }
 
   if (isUpload || isUploadCustome) {
-    const databaseName = promptDatabaseName();
+    const databaseName = await promptDatabaseName();
     const mongoUri = isUploadCustome
-      ? promptMongoUri()
+      ? await promptMongoUri()
       : `mongodb://127.0.0.1:27017/${databaseName}`;
     uploadJsonFiles(uploadEntries, mongoUri, databaseName);
   }
 
-  process.exit(0);
+  return;
 }
 
 const refsFiles = getMultiFlag("--refs");
@@ -775,9 +771,15 @@ if (isIdList) {
 }
 
 if (isUpload || isUploadCustome) {
-  const databaseName = promptDatabaseName();
+  const databaseName = await promptDatabaseName();
   const mongoUri = isUploadCustome
-    ? promptMongoUri()
+    ? await promptMongoUri()
     : `mongodb://127.0.0.1:27017/${databaseName}`;
   uploadJsonFiles([{ jsonFile: path.resolve(inputFile), collectionName: collectionName.toLowerCase() }], mongoUri, databaseName);
 }
+}
+
+main().catch((error) => {
+  console.error(error.message || String(error));
+  process.exit(1);
+});
