@@ -1,0 +1,28 @@
+=== Booking ===
+object {
+  _id: ObjectId
+  user: ObjectId
+  event: ObjectId
+  quantity: number
+  __v: number
+}
+
+=== Event ===
+object {
+  _id: ObjectId
+  name: string
+  description: string
+  date: Date
+  location: string
+  availableTickets: number
+  __v: number
+}
+
+=== User ===
+object {
+  _id: ObjectId
+  name: string
+  email: string
+  password: string
+  __v: number
+}

@@ -6,7 +6,7 @@
  *   node jsonToModel.js users.json --model User --mongoose User.js
  *
  * Batch:
- *   node jsonToModel.js --auto-ref --clean --js-deep --input . --output ./models
+ *   node jsonToModel-win.js --auto-ref --clean --js-deep --populate --id-list --upload-custom --note --mongoose all 
  */
 
 const fs = require("fs");
@@ -545,8 +545,8 @@ let batchFiles = isBatch ? getMultiFlag("--batch") : [];
 let outDir = getFlag("--output") ?? getFlag("--outdir");
 
 async function main() {
-if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
-  console.log(`
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+    console.log(`
 JSON_TO_MODEL
 Usage: node ${scriptName} [options]
 
@@ -580,108 +580,194 @@ Examples:
   node ${scriptName} --batch users.json events.json --outdir ./models --mongoose find
   node ${scriptName} users.json --model User --mongoose User.js
 `);
-  return;
-}
-
-if (isAuto || isAutoRef || isBatch) {
-  let selectedDir = ".";
-
-  if (isAuto || isAutoRef) {
-    const autoInputDir = getFlag("--input") ?? getFlag("-db-dir") ?? getFlag("--db-dir") ?? ".";
-    selectedDir = autoInputDir;
-    outDir = outDir ?? path.join(autoInputDir, "models");
-    if (!fs.existsSync(autoInputDir)) {
-      console.error(`Error: Input directory not found: ${autoInputDir}`);
-      process.exit(1);
-    }
-    batchFiles = fs.readdirSync(autoInputDir)
-      .filter((f) => f.toLowerCase().endsWith(".json"))
-      .map((f) => path.join(autoInputDir, f));
-    if (!batchFiles.length) {
-      console.error(`No .json files found in directory: ${autoInputDir}`);
-      process.exit(1);
-    }
-  } else {
-    const fixedBatchFiles = [];
-    for (const bf of batchFiles) {
-      if (bf.includes(".json/")) fixedBatchFiles.push(...bf.split(/(?<=\.json)(?=\/)/i));
-      else fixedBatchFiles.push(bf);
-    }
-    batchFiles = fixedBatchFiles;
-    if (!batchFiles.length) {
-      console.error(`Usage: node ${scriptName} --batch file1.json file2.json ... [--output ./models]`);
-      process.exit(1);
-    }
-    outDir = outDir ?? ".";
+    return;
   }
 
-  const refRegistry = isAutoRef ? buildRefRegistryFromJsonFiles(batchFiles) : {};
-  const mongooseDir = path.join(selectedDir, "mongoose");
-  const dbJsEntries = [];
-  const idEntries = [];
-  const uploadEntries = [];
-  const dbNotes = [];
+  if (isAuto || isAutoRef || isBatch) {
+    let selectedDir = ".";
 
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-  if (mongooseMode && !fs.existsSync(mongooseDir)) fs.mkdirSync(mongooseDir, { recursive: true });
-
-  for (const jsonFile of batchFiles) {
-    const { modelName, collectionName } = namesFromFile(jsonFile);
-    const raw = fs.readFileSync(jsonFile, "utf8");
-    const docs = JSON.parse(raw);
-
-    if (!Array.isArray(docs)) {
-      console.error(`Skipping ${jsonFile}: expected a JSON array.`);
-      continue;
+    if (isAuto || isAutoRef) {
+      const autoInputDir = getFlag("--input") ?? getFlag("-db-dir") ?? getFlag("--db-dir") ?? ".";
+      selectedDir = autoInputDir;
+      outDir = outDir ?? path.join(autoInputDir, "models");
+      if (!fs.existsSync(autoInputDir)) {
+        console.error(`Error: Input directory not found: ${autoInputDir}`);
+        process.exit(1);
+      }
+      batchFiles = fs.readdirSync(autoInputDir)
+        .filter((f) => f.toLowerCase().endsWith(".json"))
+        .map((f) => path.join(autoInputDir, f));
+      if (!batchFiles.length) {
+        console.error(`No .json files found in directory: ${autoInputDir}`);
+        process.exit(1);
+      }
+    } else {
+      const fixedBatchFiles = [];
+      for (const bf of batchFiles) {
+        if (bf.includes(".json/")) fixedBatchFiles.push(...bf.split(/(?<=\.json)(?=\/)/i));
+        else fixedBatchFiles.push(bf);
+      }
+      batchFiles = fixedBatchFiles;
+      if (!batchFiles.length) {
+        console.error(`Usage: node ${scriptName} --batch file1.json file2.json ... [--output ./models]`);
+        process.exit(1);
+      }
+      outDir = outDir ?? ".";
     }
 
-    const schema = docs.map(inferSchema).reduce(mergeSchemas);
-    const modelCode = generateMongooseModel(schema, modelName, refRegistry, { clean: isClean });
-    const modelFilePath = path.join(outDir, `${collectionName.toLowerCase()}.js`);
-    fs.writeFileSync(modelFilePath, modelCode, "utf8");
+    const refRegistry = isAutoRef ? buildRefRegistryFromJsonFiles(batchFiles) : {};
+    const mongooseDir = path.join(selectedDir, "mongoose");
+    const dbJsEntries = [];
+    const idEntries = [];
+    const uploadEntries = [];
+    const dbNotes = [];
 
-    dbJsEntries.push({ schema, modelName, collectionName });
-    idEntries.push({ docs, modelName });
-    uploadEntries.push({ jsonFile, collectionName: collectionName.toLowerCase() });
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+    if (mongooseMode && !fs.existsSync(mongooseDir)) fs.mkdirSync(mongooseDir, { recursive: true });
+
+    for (const jsonFile of batchFiles) {
+      const { modelName, collectionName } = namesFromFile(jsonFile);
+      const raw = fs.readFileSync(jsonFile, "utf8");
+      const docs = JSON.parse(raw);
+
+      if (!Array.isArray(docs)) {
+        console.error(`Skipping ${jsonFile}: expected a JSON array.`);
+        continue;
+      }
+
+      const schema = docs.map(inferSchema).reduce(mergeSchemas);
+      const modelCode = generateMongooseModel(schema, modelName, refRegistry, { clean: isClean });
+      const modelFilePath = path.join(outDir, `${collectionName.toLowerCase()}.js`);
+      fs.writeFileSync(modelFilePath, modelCode, "utf8");
+
+      dbJsEntries.push({ schema, modelName, collectionName });
+      idEntries.push({ docs, modelName });
+      uploadEntries.push({ jsonFile, collectionName: collectionName.toLowerCase() });
+
+      if (isNote) {
+        dbNotes.push(`=== ${modelName} ===`);
+        dbNotes.push(prettySchema(schema));
+        dbNotes.push("");
+      }
+
+      if (mongooseMode) {
+        const crudCode = generateMongooseCrudFile(schema, modelName, collectionName, modelFilePath, refRegistry, {
+          clean: isClean,
+          jsDeep: isJsDeep,
+          populate: isPopulate,
+          mongooseMode,
+          mongooseDir,
+        });
+        const crudFilePath = path.join(mongooseDir, `${collectionName.toLowerCase()}.js`);
+        fs.writeFileSync(crudFilePath, crudCode, "utf8");
+        console.log(`Generated mongoose route: ${crudFilePath}`);
+      }
+
+      console.log(`Written model: ${modelFilePath}`);
+    }
 
     if (isNote) {
-      dbNotes.push(`=== ${modelName} ===`);
-      dbNotes.push(prettySchema(schema));
-      dbNotes.push("");
+      const notePath = path.join(selectedDir, "db.txt");
+      fs.writeFileSync(notePath, dbNotes.join("\n"), "utf8");
+      console.log(`Written schema notes: ${notePath}`);
     }
 
-    if (mongooseMode) {
-      const crudCode = generateMongooseCrudFile(schema, modelName, collectionName, modelFilePath, refRegistry, {
-        clean: isClean,
-        jsDeep: isJsDeep,
-        populate: isPopulate,
-        mongooseMode,
-        mongooseDir,
-      });
-      const crudFilePath = path.join(mongooseDir, `${collectionName.toLowerCase()}.js`);
-      fs.writeFileSync(crudFilePath, crudCode, "utf8");
-      console.log(`Generated mongoose route: ${crudFilePath}`);
+    if (shouldWriteJs) {
+      const dbJsPath = path.join(selectedDir, "db.js");
+      fs.writeFileSync(dbJsPath, generateDbJsTemplate(dbJsEntries, { clean: isClean, jsDeep: isJsDeep }), "utf8");
+      console.log(`Written db.js: ${dbJsPath}`);
     }
 
-    console.log(`Written model: ${modelFilePath}`);
+    if (isIdList) {
+      const idPath = path.join(selectedDir, "id.txt");
+      fs.writeFileSync(idPath, generateIdList(idEntries), "utf8");
+      console.log(`Written id list: ${idPath}`);
+    }
+
+    if (isUpload || isUploadCustome) {
+      const databaseName = await promptDatabaseName();
+      const mongoUri = isUploadCustome
+        ? await promptMongoUri()
+        : `mongodb://127.0.0.1:27017/${databaseName}`;
+      uploadJsonFiles(uploadEntries, mongoUri, databaseName);
+    }
+
+    return;
   }
 
-  if (isNote) {
-    const notePath = path.join(selectedDir, "db.txt");
-    fs.writeFileSync(notePath, dbNotes.join("\n"), "utf8");
-    console.log(`Written schema notes: ${notePath}`);
+  const refsFiles = getMultiFlag("--refs");
+  const inputFile = args.find((a) =>
+    !a.startsWith("--") &&
+    !refsFiles.includes(a) &&
+    args[args.indexOf(a) - 1] !== "--out" &&
+    args[args.indexOf(a) - 1] !== "--model" &&
+    args[args.indexOf(a) - 1] !== "--mongoose"
+  );
+  const outputFile = getFlag("--out");
+  const mongooseFile = mongooseMode ? null : mongooseFlag;
+
+  if (!inputFile) {
+    console.error([
+      `Single: node ${scriptName} <input.json> [--model Name] [--out schema.json] [--mongoose Model.js] [--refs A.js B.js]`,
+      `Batch:  node ${scriptName} --auto-ref --input . --output ./models [--mongoose all]`,
+    ].join("\n"));
+    process.exit(1);
+  }
+
+  const { modelName: inferredModel, collectionName } = namesFromFile(inputFile);
+  const modelName = getFlag("--model") ?? inferredModel;
+  const refRegistry = refsFiles.length ? buildRefRegistryFromModelFiles(refsFiles) : {};
+  const raw = fs.readFileSync(inputFile, "utf8");
+  const docs = JSON.parse(raw);
+
+  if (!Array.isArray(docs)) {
+    console.error("Expected a JSON array of documents.");
+    process.exit(1);
+  }
+
+  const schema = docs.map(inferSchema).reduce(mergeSchemas);
+
+  console.log("\n=== Inferred Schema ===\n");
+  console.log(prettySchema(schema));
+
+  if (outputFile) {
+    fs.writeFileSync(outputFile, JSON.stringify(schema, null, 2), "utf8");
+    console.log(`JSON schema written to: ${outputFile}`);
+  }
+
+  if (mongooseFile) {
+    const modelCode = generateMongooseModel(schema, modelName, refRegistry, { clean: isClean });
+    fs.writeFileSync(mongooseFile, modelCode, "utf8");
+    console.log(`Mongoose model written to: ${mongooseFile}`);
+  }
+
+  if (mongooseMode) {
+    const selectedDir = path.dirname(path.resolve(inputFile));
+    const mongooseDir = path.join(selectedDir, "mongoose");
+    if (!fs.existsSync(mongooseDir)) fs.mkdirSync(mongooseDir, { recursive: true });
+    const modelFilePath = path.join(selectedDir, "models", `${collectionName.toLowerCase()}.js`);
+    const crudCode = generateMongooseCrudFile(schema, modelName, collectionName, modelFilePath, refRegistry, {
+      clean: isClean,
+      jsDeep: isJsDeep,
+      populate: isPopulate,
+      mongooseMode,
+      mongooseDir,
+    });
+    const crudFilePath = path.join(mongooseDir, `${collectionName.toLowerCase()}.js`);
+    fs.writeFileSync(crudFilePath, crudCode, "utf8");
+    console.log(`Mongoose CRUD file written to: ${crudFilePath}`);
   }
 
   if (shouldWriteJs) {
-    const dbJsPath = path.join(selectedDir, "db.js");
-    fs.writeFileSync(dbJsPath, generateDbJsTemplate(dbJsEntries, { clean: isClean, jsDeep: isJsDeep }), "utf8");
-    console.log(`Written db.js: ${dbJsPath}`);
+    const dbJsPath = path.join(path.dirname(path.resolve(inputFile)), "db.js");
+    fs.writeFileSync(dbJsPath, generateDbJsTemplate([{ schema, modelName, collectionName }], { clean: isClean, jsDeep: isJsDeep }), "utf8");
+    console.log(`db.js written to: ${dbJsPath}`);
   }
 
   if (isIdList) {
-    const idPath = path.join(selectedDir, "id.txt");
-    fs.writeFileSync(idPath, generateIdList(idEntries), "utf8");
-    console.log(`Written id list: ${idPath}`);
+    const idPath = path.join(path.dirname(path.resolve(inputFile)), "id.txt");
+    fs.writeFileSync(idPath, generateIdList([{ docs, modelName }]), "utf8");
+    console.log(`id.txt written to: ${idPath}`);
   }
 
   if (isUpload || isUploadCustome) {
@@ -689,94 +775,8 @@ if (isAuto || isAutoRef || isBatch) {
     const mongoUri = isUploadCustome
       ? await promptMongoUri()
       : `mongodb://127.0.0.1:27017/${databaseName}`;
-    uploadJsonFiles(uploadEntries, mongoUri, databaseName);
+    uploadJsonFiles([{ jsonFile: path.resolve(inputFile), collectionName: collectionName.toLowerCase() }], mongoUri, databaseName);
   }
-
-  return;
-}
-
-const refsFiles = getMultiFlag("--refs");
-const inputFile = args.find((a) =>
-  !a.startsWith("--") &&
-  !refsFiles.includes(a) &&
-  args[args.indexOf(a) - 1] !== "--out" &&
-  args[args.indexOf(a) - 1] !== "--model" &&
-  args[args.indexOf(a) - 1] !== "--mongoose"
-);
-const outputFile = getFlag("--out");
-const mongooseFile = mongooseMode ? null : mongooseFlag;
-
-if (!inputFile) {
-  console.error([
-    `Single: node ${scriptName} <input.json> [--model Name] [--out schema.json] [--mongoose Model.js] [--refs A.js B.js]`,
-    `Batch:  node ${scriptName} --auto-ref --input . --output ./models [--mongoose all]`,
-  ].join("\n"));
-  process.exit(1);
-}
-
-const { modelName: inferredModel, collectionName } = namesFromFile(inputFile);
-const modelName = getFlag("--model") ?? inferredModel;
-const refRegistry = refsFiles.length ? buildRefRegistryFromModelFiles(refsFiles) : {};
-const raw = fs.readFileSync(inputFile, "utf8");
-const docs = JSON.parse(raw);
-
-if (!Array.isArray(docs)) {
-  console.error("Expected a JSON array of documents.");
-  process.exit(1);
-}
-
-const schema = docs.map(inferSchema).reduce(mergeSchemas);
-
-console.log("\n=== Inferred Schema ===\n");
-console.log(prettySchema(schema));
-
-if (outputFile) {
-  fs.writeFileSync(outputFile, JSON.stringify(schema, null, 2), "utf8");
-  console.log(`JSON schema written to: ${outputFile}`);
-}
-
-if (mongooseFile) {
-  const modelCode = generateMongooseModel(schema, modelName, refRegistry, { clean: isClean });
-  fs.writeFileSync(mongooseFile, modelCode, "utf8");
-  console.log(`Mongoose model written to: ${mongooseFile}`);
-}
-
-if (mongooseMode) {
-  const selectedDir = path.dirname(path.resolve(inputFile));
-  const mongooseDir = path.join(selectedDir, "mongoose");
-  if (!fs.existsSync(mongooseDir)) fs.mkdirSync(mongooseDir, { recursive: true });
-  const modelFilePath = path.join(selectedDir, "models", `${collectionName.toLowerCase()}.js`);
-  const crudCode = generateMongooseCrudFile(schema, modelName, collectionName, modelFilePath, refRegistry, {
-    clean: isClean,
-    jsDeep: isJsDeep,
-    populate: isPopulate,
-    mongooseMode,
-    mongooseDir,
-  });
-  const crudFilePath = path.join(mongooseDir, `${collectionName.toLowerCase()}.js`);
-  fs.writeFileSync(crudFilePath, crudCode, "utf8");
-  console.log(`Mongoose CRUD file written to: ${crudFilePath}`);
-}
-
-if (shouldWriteJs) {
-  const dbJsPath = path.join(path.dirname(path.resolve(inputFile)), "db.js");
-  fs.writeFileSync(dbJsPath, generateDbJsTemplate([{ schema, modelName, collectionName }], { clean: isClean, jsDeep: isJsDeep }), "utf8");
-  console.log(`db.js written to: ${dbJsPath}`);
-}
-
-if (isIdList) {
-  const idPath = path.join(path.dirname(path.resolve(inputFile)), "id.txt");
-  fs.writeFileSync(idPath, generateIdList([{ docs, modelName }]), "utf8");
-  console.log(`id.txt written to: ${idPath}`);
-}
-
-if (isUpload || isUploadCustome) {
-  const databaseName = await promptDatabaseName();
-  const mongoUri = isUploadCustome
-    ? await promptMongoUri()
-    : `mongodb://127.0.0.1:27017/${databaseName}`;
-  uploadJsonFiles([{ jsonFile: path.resolve(inputFile), collectionName: collectionName.toLowerCase() }], mongoUri, databaseName);
-}
 }
 
 main().catch((error) => {

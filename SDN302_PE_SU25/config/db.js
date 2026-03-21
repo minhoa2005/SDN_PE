@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const Users = require('../models/users');
+const Events = require('../models/events');
+const Bookings = require('../models/bookings');
 require('dotenv').config();
 
 const connectDB = async () => {
@@ -11,4 +14,9 @@ const connectDB = async () => {
     }
 };
 
-module.exports = connectDB;
+module.exports = {
+    connectDB,
+    Users,
+    Events,
+    Bookings
+};
