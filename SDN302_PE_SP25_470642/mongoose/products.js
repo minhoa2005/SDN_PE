@@ -13,7 +13,7 @@ const mapProduct = (i) => ({
 
 const findProducts = async (req, res) => {
   try {
-    const list = await Product.find().catch(() => null);
+    const list = await Product.find().populate("category").catch(() => null);
 
     // Uncomment if you want an empty list to return 404.
     // if (!list || list.length === 0) {
@@ -28,7 +28,7 @@ const findProducts = async (req, res) => {
 
 const findProductById = async (req, res) => {
   try {
-    const item = await Product.findById(req.params.id).catch(() => null);
+    const item = await Product.findById(req.params.id).populate("category").catch(() => null);
 
     if (!item) {
       return res.status(404).json({ message: "Product not found" });
@@ -59,7 +59,7 @@ const updateProductById = async (req, res) => {
     const updated = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    }).catch(() => null);
+    }).populate("category").catch(() => null);
 
     if (!updated) {
       return res.status(404).json({ message: "Product not found" });

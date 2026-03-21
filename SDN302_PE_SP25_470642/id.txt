@@ -1,4 +1,4 @@
-Categorie
+Category
 valid_id: 67bc8e6fd100471c0d9a4c4d
 invalid_id: 000000000000000000000000
 

@@ -120,11 +120,33 @@ function ucFirst(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function singularizeName(name) {
+  const lower = String(name || "").toLowerCase();
+  if (lower.endsWith("ies") && lower.length > 3) {
+    return `${lower.slice(0, -3)}y`;
+  }
+  if (lower.endsWith("s") && lower.length > 1) {
+    return lower.slice(0, -1);
+  }
+  return lower;
+}
+
+function pluralizeName(name) {
+  const value = String(name || "");
+  if (/y$/i.test(value) && value.length > 1) {
+    return `${value.slice(0, -1)}ies`;
+  }
+  if (/s$/i.test(value)) {
+    return value;
+  }
+  return `${value}s`;
+}
+
 function namesFromFile(filePath) {
   const base = path.basename(filePath, ".json");
   const last = base.split(/[_.\-]/).pop();
   const lower = last.toLowerCase();
-  const singular = lower.endsWith("s") ? lower.slice(0, -1) : lower;
+  const singular = singularizeName(lower);
   return { modelName: ucFirst(singular), collectionName: ucFirst(lower) };
 }
 
@@ -146,7 +168,7 @@ function buildRefRegistryFromModelFiles(jsFiles) {
     if (!match) continue;
     const modelName = match[1];
     const low = modelName.toLowerCase();
-    const singular = low.endsWith("s") ? low.slice(0, -1) : low;
+    const singular = singularizeName(low);
     registry[low] = modelName;
     registry[singular] = modelName;
   }
@@ -208,8 +230,9 @@ function buildMongooseFields(fields, indent = 1, refRegistry = {}, options = {})
 function generateMongooseModel(schema, modelName, refRegistry = {}, options = {}) {
   if (schema.type !== "object") throw new Error("Top-level schema must be an object.");
   const schemaVar = `${lcFirst(modelName)}Schema`;
+  const modelVar = pluralizeName(modelName);
   const fields = buildMongooseFields(schema.fields, 1, refRegistry, options);
-  return `const mongoose = require("mongoose");\n\nconst ${schemaVar} = new mongoose.Schema({\n${fields}\n});\n\nmodule.exports = mongoose.model("${modelName}", ${schemaVar});\n`;
+  return `const mongoose = require("mongoose");\n\nconst ${schemaVar} = new mongoose.Schema({\n${fields}\n});\n\nconst ${modelVar} = mongoose.model("${modelName}", ${schemaVar});\nmodule.exports = ${modelVar};\n`;
 }
 
 function buildJsObjectBody(schema, sourceExpr, indent = 1, options = {}) {
@@ -432,7 +455,7 @@ function promptMongoUri() {
 
   const mongoUri = (result.stdout || "").trim();
   if (!mongoUri) {
-    throw new Error("Mongo URI is required for --upload-custom.");
+    throw new Error("Mongo URI is required for --upload-custom / --upload-custome.");
   }
 
   return mongoUri;
@@ -521,7 +544,7 @@ const isJsDeep = args.includes("--js-deep");
 const isPopulate = args.includes("--populate");
 const isIdList = args.includes("--id-list");
 const isUpload = args.includes("--upload");
-const isUploadCustome = args.includes("--upload-custom");
+const isUploadCustome = args.includes("--upload-custom") || args.includes("--upload-custome");
 const shouldWriteJs = isJs || isJsDeep;
 let batchFiles = isBatch ? getMultiFlag("--batch") : [];
 let outDir = getFlag("--output") ?? getFlag("--outdir");
@@ -543,7 +566,8 @@ Options:
   --populate                     Add populate(...) to generated CRUD queries when refs are detected.
   --id-list                      Generate id.txt with valid_id and invalid_id samples.
   --upload                       Upload JSON files to local MongoDB after generation.
-  --upload-custom               Upload JSON files to a custom MongoDB URI after generation.
+  --upload-custom, --upload-custome
+                                 Upload JSON files to a custom MongoDB URI after generation.
   --note                         Generate db.txt schema notes.
   --mongoose <file|mode>         Single-file model output path, or CRUD mode: all|find|findById|create|updateById|deleteById.
   --help, -h                     Show this help.

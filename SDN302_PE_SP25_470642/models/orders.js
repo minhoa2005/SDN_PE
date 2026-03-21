@@ -1,9 +1,6 @@
 const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema({
-  _id: {
-    type: mongoose.Schema.Types.ObjectId,
-  },
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Customer",
@@ -16,9 +13,6 @@ const orderSchema = new mongoose.Schema({
       },
       quantity: {
         type: Number,
-      },
-      _id: {
-        type: mongoose.Schema.Types.ObjectId,
       }
     }
   ],
@@ -27,10 +21,8 @@ const orderSchema = new mongoose.Schema({
   },
   orderDate: {
     type: Date,
-  },
-  __v: {
-    type: Number,
   }
 });
 
-module.exports = mongoose.model("Order", orderSchema);
+const Orders = mongoose.model("Order", orderSchema);
+module.exports = Orders;
