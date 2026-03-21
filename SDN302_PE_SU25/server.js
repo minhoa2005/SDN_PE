@@ -117,7 +117,7 @@ app.post('/api/users/login', async (req, res) => {
                 message: 'Invalid credentials'
             })
         }
-        const checkPassword = await bcrypt.compareSync(password, checkUser.password);
+        const checkPassword = bcrypt.compareSync(password, checkUser.password);
         if (!checkPassword) {
             return res.json({
                 message: 'Invalid credentials'
